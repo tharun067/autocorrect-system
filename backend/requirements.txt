@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pydantic
+pyspellchecker
+python-Levenshtein
+python-docx
+PyPDF2
+python-magic
