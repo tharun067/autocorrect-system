@@ -1,10 +1,10 @@
-"""If you want use a single language for autoCorrect System use this code"""
+"""If you want use a multiple language for autoCorrect System use this code"""
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from spellchecker import SpellChecker
+from symspellpy import SymSpell, Verbosity
 from docx import Document
 from PyPDF2 import PdfReader
 from fpdf import FPDF
@@ -31,7 +31,11 @@ app.add_middleware(
 # ====================
 class EnhancedSpellChecker:
     def __init__(self):
-        self.spell = SpellChecker()
+        self.spell = SymSpell()
+        dictionary_path = "frequency_dictionary_en_82_765.txt"  # Path to frequency dictionary
+        bigram_path = "bigram_dictionary_en_243_342.txt"  # Path to bigram dictionary
+        self.spell.load_dictionary(dictionary_path, 0, 1)
+        self.spell.load_bigram_dictionary(bigram_path, 0, 2)
 
     def check_text(self, text: str) -> List[Dict]:
         """Check spelling and return suggestions with positions."""
@@ -51,12 +55,12 @@ class EnhancedSpellChecker:
                     "start_index": start_index
                 })
             else:
-                is_correct = self.spell.correction(word) == word
-                suggestions = list(self.spell.candidates(word))[:3] if not is_correct else []
+                suggestions = self.spell.lookup(word, Verbosity.CLOSEST, max_edit_distance=2, include_unknown=True)
+                is_correct = suggestions[0].term == word if suggestions else True
                 results.append({
                     "word": word,
                     "is_correct": is_correct,
-                    "suggestions": suggestions,
+                    "suggestions": [s.term for s in suggestions[:3] if s.term != word] if not is_correct else [],
                     "start_index": start_index
                 })
         return results
@@ -184,10 +188,3 @@ async def download_corrected(filename: str):
         filename=f"corrected_{filename}",
         media_type="application/octet-stream"
     )
-
-# ====================
-# Main Execution
-# ====================
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
